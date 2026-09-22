@@ -10,7 +10,7 @@ const { htmlToText } = require('html-to-text');
 const { cleanFileName, getExtension, parseNcxToc } = require('./reader-utils');
 const { extractEpubMetadataFromOpf, extractCoverHrefFromOpf, parseManifest, extractNavTocFromHtml, extractFallbackTocFromOpf } = require('./epub-utils');
 const { decodeTextBytes } = require('./text-utils');
-const { relocateBookPaths } = require('./storage-utils');
+const { relocateBookPaths, toPortableState } = require('./storage-utils');
 const { createReadingStats, ensureReadingStats, signReadingStats } = require('./reading-stats');
 
 let mainWindow;
@@ -106,7 +106,7 @@ async function loadState() {
 }
 
 async function saveState() {
-  await fsp.writeFile(statePath, JSON.stringify(state, null, 2), 'utf8');
+  await fsp.writeFile(statePath, JSON.stringify(toPortableState(state, storageRoot), null, 2), 'utf8');
 }
 
 function findBook(bookId) {

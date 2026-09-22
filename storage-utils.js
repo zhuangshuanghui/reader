@@ -37,4 +37,25 @@ function relocateBookPaths(books, libraryRoot) {
   return changed;
 }
 
-module.exports = { relocateLibraryPath, relocateBookPaths };
+function toPortableState(state, storageRoot) {
+  const normalizedRoot = path.resolve(storageRoot);
+  return {
+    ...state,
+    books: (state.books || []).map((book) => {
+      const portableBook = { ...book };
+      for (const field of BOOK_PATH_FIELDS) {
+        const value = portableBook[field];
+        if (typeof value !== 'string' || !value) {
+          continue;
+        }
+        const relative = path.relative(normalizedRoot, path.resolve(value));
+        if (relative && !relative.startsWith('..') && !path.isAbsolute(relative)) {
+          portableBook[field] = relative.replace(/\\/g, '/');
+        }
+      }
+      return portableBook;
+    }),
+  };
+}
+
+module.exports = { relocateLibraryPath, relocateBookPaths, toPortableState };
