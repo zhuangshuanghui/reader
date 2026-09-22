@@ -106,7 +106,7 @@ async function loadState() {
 }
 
 async function saveState() {
-  await fsp.writeFile(statePath, JSON.stringify(toPortableState(state, storageRoot), null, 2), 'utf8');
+  await fsp.writeFile(statePath, `${JSON.stringify(toPortableState(state, storageRoot), null, 2)}\n`, 'utf8');
 }
 
 function findBook(bookId) {
