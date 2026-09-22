@@ -10,6 +10,8 @@ const { htmlToText } = require('html-to-text');
 const { cleanFileName, getExtension, parseNcxToc } = require('./reader-utils');
 const { extractEpubMetadataFromOpf, extractCoverHrefFromOpf, parseManifest, extractNavTocFromHtml, extractFallbackTocFromOpf } = require('./epub-utils');
 const { decodeTextBytes } = require('./text-utils');
+const { relocateBookPaths } = require('./storage-utils');
+const { createReadingStats, ensureReadingStats, signReadingStats } = require('./reading-stats');
 
 let mainWindow;
 let state;
@@ -21,7 +23,6 @@ const TEXT_EXTENSIONS = new Set(['txt', 'md', 'text']);
 const EPUB_EXTENSIONS = new Set(['epub']);
 const PDF_EXTENSIONS = new Set(['pdf']);
 const MOBI_EXTENSIONS = new Set(['mobi', 'azw3']);
-const READING_STATS_SALT = 'local-reader-reading-stats-v1';
 
 function uid() {
   return crypto.randomUUID();
@@ -33,54 +34,6 @@ function ensureDir(dirPath) {
 
 function defaultState() {
   return { books: [] };
-}
-
-function readingStatsPayload(stats) {
-  const daily = stats && typeof stats.daily === 'object' && !Array.isArray(stats.daily) ? stats.daily : {};
-  return JSON.stringify({
-    totalSeconds: Math.max(0, Math.floor(Number(stats?.totalSeconds || 0))),
-    daily: Object.fromEntries(Object.entries(daily).sort(([a], [b]) => a.localeCompare(b))),
-    updatedAt: stats?.updatedAt || '',
-  });
-}
-
-function signReadingStats(bookId, stats) {
-  return crypto
-    .createHash('sha256')
-    .update(`${READING_STATS_SALT}:${bookId}:${readingStatsPayload(stats)}`)
-    .digest('hex');
-}
-
-function createReadingStats(bookId, stats = {}) {
-  const daily = stats && typeof stats.daily === 'object' && !Array.isArray(stats.daily) ? stats.daily : {};
-  const normalizedDaily = {};
-  for (const [date, seconds] of Object.entries(daily)) {
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      normalizedDaily[date] = Math.max(0, Math.floor(Number(seconds || 0)));
-    }
-  }
-  const normalized = {
-    totalSeconds: Math.max(0, Math.floor(Number(stats.totalSeconds || 0))),
-    daily: normalizedDaily,
-    updatedAt: stats.updatedAt || '',
-  };
-  normalized.signature = signReadingStats(bookId, normalized);
-  return normalized;
-}
-
-function ensureReadingStats(book) {
-  if (!book) {
-    return null;
-  }
-  if (!book.readingStats) {
-    book.readingStats = createReadingStats(book.id);
-    return book.readingStats;
-  }
-  const expected = signReadingStats(book.id, book.readingStats);
-  if (book.readingStats.signature !== expected) {
-    book.readingStats = createReadingStats(book.id);
-  }
-  return book.readingStats;
 }
 
 function normalizeLoadedState(parsed) {
@@ -840,9 +793,10 @@ function createWindow() {
     minHeight: 760,
     backgroundColor: '#0f1115',
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      sandbox: false,
+      preload: path.join(__dirname, 'preload.js'),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
     },
   });
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
@@ -857,6 +811,9 @@ app.whenReady().then(async () => {
   ensureDir(storageRoot);
   ensureDir(libraryRoot);
   state = await loadState();
+  if (relocateBookPaths(state.books, libraryRoot)) {
+    await saveState();
+  }
 
   ipcMain.handle('library:get', async () => ({ books: recentBooks() }));
   ipcMain.handle('library:import', async () => importBooks());
@@ -891,6 +848,13 @@ app.whenReady().then(async () => {
       return readTextFile(book.entryPath);
     }
     return '';
+  });
+  ipcMain.handle('library:readBinary', async (_event, bookId) => {
+    const book = findBook(bookId);
+    if (!book || !book.entryPath) {
+      return null;
+    }
+    return new Uint8Array(await fsp.readFile(book.entryPath));
   });
   ipcMain.handle('library:state', async () => state);
 

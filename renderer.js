@@ -1,8 +1,7 @@
-const { ipcRenderer } = require('electron');
-const path = require('path');
-const fs = require('fs');
-const { pathToFileURL } = require('url');
-const { cleanFileName, formatProgress, escapeHtml } = require('./reader-utils');
+const ipcRenderer = { invoke: window.readerApi.invoke };
+const path = { extname: window.readerApi.extname };
+const pathToFileURL = (value) => ({ href: window.readerApi.toFileUrl(value) });
+const { cleanFileName, formatProgress, escapeHtml } = window.readerApi;
 
 let books = [];
 let activeBook = null;
@@ -543,26 +542,6 @@ async function renderFallbackText(book, message = '') {
   setSidebarMode('toc');
   readerState.toc = [];
   renderReaderSidebar();
-}
-
-function renderBookDetail() {
-  if (!activeBook) {
-    els.detailTitle.textContent = '请选择一本书';
-    els.detailMeta.textContent = '';
-    els.detailSummary.textContent = '点击左侧书籍查看详情。';
-    els.openReaderBtn.disabled = true;
-    els.bookDetail.classList.add('empty-state');
-    return;
-  }
-
-  const progress = formatProgress(activeBook);
-  const lastOpened = activeBook.lastOpenedAt ? new Date(activeBook.lastOpenedAt).toLocaleString() : '未阅读';
-  const tocCount = Array.isArray(activeBook.toc) ? activeBook.toc.length : 0;
-  els.detailTitle.textContent = activeBook.title || activeBook.originalName || '未命名';
-  els.detailMeta.textContent = `${activeBook.author || '未知作者'} · ${String(activeBook.format || '').toUpperCase()} · ${progress} · 目录 ${tocCount} 条 · 最近阅读 ${lastOpened}`;
-  els.detailSummary.textContent = activeBook.description || `导入文件：${activeBook.originalName || ''}`;
-  els.openReaderBtn.disabled = false;
-  els.bookDetail.classList.remove('empty-state');
 }
 
 async function jumpToSearchResult(item) {
@@ -1300,6 +1279,7 @@ async function renderHtmlLike(book) {
   const iframe = document.createElement('iframe');
   iframe.className = 'html-reader-frame';
   iframe.src = pathToFileURL(book.entryPath).href;
+  iframe.setAttribute('sandbox', 'allow-same-origin');
   iframe.setAttribute('referrerpolicy', 'no-referrer');
   els.readerHost.appendChild(iframe);
   readerState.htmlFrame = iframe;
@@ -1383,8 +1363,7 @@ async function renderTextLike(book) {
 }
 
 async function renderEpub(book) {
-  const epubModule = require('epubjs');
-  const ePub = epubModule.default || epubModule;
+  const ePub = window.ePub;
   const fileUrl = pathToFileURL(book.entryPath).href;
   const bookObject = ePub(fileUrl, { replacements: 'blobUrl' });
   await bookObject.ready;
@@ -1481,10 +1460,13 @@ async function renderEpub(book) {
 }
 
 async function renderPdf(book) {
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  const workerPath = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs');
-  pdfjsLib.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
-  const data = new Uint8Array(fs.readFileSync(book.entryPath));
+  const pdfjsLib = await import('./node_modules/pdfjs-dist/legacy/build/pdf.mjs');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs', window.location.href).href;
+  const binary = await ipcRenderer.invoke('library:readBinary', book.id);
+  if (!binary) {
+    throw new Error('无法读取 PDF 文件');
+  }
+  const data = new Uint8Array(binary);
   const pdf = await pdfjsLib.getDocument({ data }).promise;
   readerState.readerKind = 'pdf';
   readerState.pdfPageNodes = [];

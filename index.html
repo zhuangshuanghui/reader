@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: file: blob:; img-src 'self' data: file: blob:; media-src 'self' data: file: blob:;" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file: blob:; media-src 'self' data: file: blob:; connect-src 'self' file: blob:; frame-src 'self' file: blob:; object-src 'none'; base-uri 'none';" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>本地阅读器</title>
     <link rel="stylesheet" href="styles.css" />
@@ -186,6 +186,7 @@
         </footer>
       </main>
     </div>
+    <script src="node_modules/epubjs/dist/epub.min.js"></script>
     <script src="renderer.js"></script>
   </body>
   </html>
