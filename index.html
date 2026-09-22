@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data: file: blob:; img-src 'self' data: file: blob:; media-src 'self' data: file: blob:;" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>本地阅读器</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">本地阅读器</div>
+        <div id="totalReadingTime" class="total-reading-time">总阅读 0秒</div>
+        <button id="readingStatsBtn" class="ghost sidebar-action">阅读统计</button>
+        <button id="importBtn" class="primary">导入书籍</button>
+        <input id="searchLibrary" type="search" placeholder="搜索书名 / 作者" />
+        <section>
+          <h2>最近阅读</h2>
+          <div id="recentList" class="list"></div>
+        </section>
+        <section>
+          <h2>书签</h2>
+          <div id="bookmarkList" class="list"></div>
+        </section>
+        <section>
+          <h2>书库</h2>
+          <div id="bookList" class="list"></div>
+        </section>
+      </aside>
+      <main class="reader-area">
+        <header class="toolbar">
+          <div>
+            <div id="bookTitle" class="title">请选择一本书</div>
+            <div id="bookMeta" class="meta"></div>
+          </div>
+          <div class="toolbar-actions">
+            <button id="backDetailBtn" class="ghost hidden">返回详情</button>
+            <button id="immersiveBtn" class="ghost">沉浸</button>
+            <button id="tocFoldBtn" class="ghost">折叠目录</button>
+            <button id="zoomOutBtn" class="ghost">A-</button>
+            <button id="zoomResetBtn" class="ghost">100%</button>
+            <button id="zoomInBtn" class="ghost">A+</button>
+            <input id="searchBookInput" type="search" placeholder="书内搜索" />
+            <button id="searchBookBtn">搜索</button>
+            <button id="tocBtn">目录</button>
+            <button id="bookmarkBtn">书签</button>
+            <button id="notesBtn">笔记</button>
+            <button id="reviewBtn">读后感</button>
+            <button id="fontMinusBtn">A-</button>
+            <button id="fontPlusBtn">A+</button>
+            <button id="themeBtn">主题</button>
+            <button id="fishModeBtn">摸鱼模式</button>
+          </div>
+        </header>
+        <button id="menuToggleBtn" class="chrome-toggle" title="收起顶部菜单" aria-label="收起顶部菜单">▲</button>
+        <div id="fishChrome" class="fish-chrome hidden">
+          <div class="fish-tabs">
+            <div class="fish-tab active">
+              <span class="fish-tab-dot"></span>
+              <span id="fishFileName">untitled.txt</span>
+            </div>
+            <div class="fish-tab fish-tab-muted">+</div>
+          </div>
+          <div id="fishBreadcrumbs" class="fish-breadcrumbs">workspace</div>
+        </div>
+        <div id="searchResults" class="search-results"></div>
+        <section id="bookDetail" class="book-detail empty-state">
+          <div>
+            <div id="detailTitle" class="book-detail-title">请选择一本书</div>
+            <div id="detailMeta" class="book-detail-meta"></div>
+            <div id="detailSummary" class="book-detail-summary">点击左侧书籍查看详情。</div>
+          </div>
+          <div class="book-detail-actions">
+            <button id="openReaderBtn" class="primary" disabled>阅读</button>
+          </div>
+        </section>
+        <div id="readerWorkspace" class="reader-workspace">
+          <aside id="readerSidebar" class="reader-sidebar">
+            <div class="reader-cover" id="readerCover">
+              <div class="reader-cover-placeholder">封面</div>
+            </div>
+            <div class="reader-sidebar-head">
+            <div id="readerSidebarTitle" class="reader-sidebar-title">目录</div>
+            <div id="readerSidebarHint" class="reader-sidebar-hint">点击章节跳转</div>
+          </div>
+          <div id="readerSidebarList" class="reader-sidebar-list"></div>
+          <div class="reader-sidebar-head reader-sidebar-separator">
+            <div class="reader-sidebar-title">划线 / 笔记</div>
+            <div class="reader-sidebar-hint">点击条目回到原文</div>
+          </div>
+          <div id="annotationList" class="reader-sidebar-list"></div>
+        </aside>
+          <div id="readerHost" class="reader-host empty-state">
+            导入一本书开始阅读
+          </div>
+        </div>
+        <div id="selectionMenu" class="selection-menu hidden">
+          <button id="highlightSelectionBtn">划线</button>
+          <button id="noteSelectionBtn">笔记</button>
+          <button id="cancelSelectionBtn">取消</button>
+        </div>
+        <div id="noteModal" class="note-modal hidden">
+          <div class="note-card">
+            <div class="note-title">写笔记</div>
+            <textarea id="noteInput" placeholder="输入你的想法"></textarea>
+            <div class="note-actions">
+              <button id="saveNoteBtn" class="primary">保存</button>
+              <button id="closeNoteBtn">取消</button>
+            </div>
+          </div>
+        </div>
+        <div id="notesModal" class="notes-modal hidden">
+          <div class="notes-shell">
+            <aside class="notes-list-panel">
+              <div class="notes-head">
+                <div>
+                  <div class="notes-title">笔记页</div>
+                  <div class="notes-subtitle">可搜索、编辑和删除</div>
+                </div>
+                <button id="closeNotesBtn" class="ghost">关闭</button>
+              </div>
+              <input id="notesSearchInput" type="search" placeholder="搜索笔记 / 划线" />
+              <div id="notesList" class="notes-list"></div>
+            </aside>
+            <section class="notes-editor-panel">
+              <div class="notes-head">
+                <div>
+                  <div id="noteDetailTitle" class="notes-title">请选择一条笔记</div>
+                  <div id="noteDetailMeta" class="notes-subtitle"></div>
+                </div>
+                <div class="notes-actions">
+                  <button id="jumpNoteBtn" class="ghost" disabled>跳转</button>
+                  <button id="deleteNoteBtn" class="ghost" disabled>删除</button>
+                </div>
+              </div>
+              <textarea id="noteDetailInput" class="notes-editor" placeholder="选中一条笔记后在这里编辑"></textarea>
+              <div class="notes-actions footer-actions">
+                <button id="saveNoteDetailBtn" class="primary" disabled>保存修改</button>
+              </div>
+            </section>
+          </div>
+        </div>
+        <div id="reviewModal" class="review-modal hidden">
+          <div class="review-card">
+            <div class="review-head">
+              <div>
+                <div id="reviewTitle" class="review-title">读后感</div>
+                <div id="reviewMeta" class="review-meta">选择一本书后开始写</div>
+              </div>
+              <button id="closeReviewBtn" class="ghost">关闭</button>
+            </div>
+            <textarea id="reviewInput" class="review-editor" placeholder="写下这本书读完后的整体感受、观点和摘录联想..."></textarea>
+            <div class="review-footer">
+              <span id="reviewStatus" class="review-status">0 字</span>
+              <button id="saveReviewBtn" class="primary">保存</button>
+            </div>
+          </div>
+        </div>
+        <div id="readingStatsModal" class="reading-stats-modal hidden">
+          <div class="reading-stats-card">
+            <div class="reading-stats-head">
+              <div>
+                <div class="reading-stats-title">阅读统计</div>
+                <div id="readingStatsSummary" class="reading-stats-subtitle">选择日期查看明细</div>
+              </div>
+              <button id="closeReadingStatsBtn" class="ghost">关闭</button>
+            </div>
+            <div class="reading-stats-controls">
+              <label for="readingStatsDate">日期</label>
+              <input id="readingStatsDate" type="date" />
+            </div>
+            <div id="readingStatsList" class="reading-stats-list"></div>
+          </div>
+        </div>
+        <div id="imageZoomModal" class="image-zoom-modal hidden">
+          <div class="image-zoom-backdrop"></div>
+          <div class="image-zoom-card">
+            <button id="closeImageZoomBtn" class="ghost image-close">关闭</button>
+            <img id="imageZoomImg" alt="放大图片" />
+          </div>
+        </div>
+        <footer class="statusbar">
+          <span id="progressText">未打开书籍</span>
+          <span id="syncText"></span>
+        </footer>
+      </main>
+    </div>
+    <script src="renderer.js"></script>
+  </body>
+  </html>
